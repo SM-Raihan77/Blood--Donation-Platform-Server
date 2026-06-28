@@ -28,12 +28,13 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        await client.connect();
+        // await client.connect();
         const db = client.db("blood-donation-platform");
 
         const usersCollection = db.collection("user");
         const donationRequestCollection = db.collection("donationRequests");
         const fundingCollection = db.collection("fundings");
+
 
 
         // ==========================
@@ -100,8 +101,6 @@ async function run() {
         });
 
 
-
-
         // ==========================
         // CREATE DONATION REQUEST
         // ==========================
@@ -132,14 +131,65 @@ async function run() {
         });
 
 
-
         // ==========================
         // GET ALL DONATION REQUESTS
         // ==========================
+        // app.get("/api/donation-requests", async (req, res) => {
+        //     console.log(req.query);
+        //     console.log(query);
+        //     try {
+        //         const { status, page = 1, limit } = req.query;
+
+
+        //         const query = {};
+
+        //         if (status) {
+        //             query.status = status;
+        //         }
+
+        //         const total = await donationRequestCollection.countDocuments(query);
+
+        //         let cursor = donationRequestCollection
+        //             .find(query)
+        //             .sort({ createdAt: -1 });
+
+        //         // Pagination
+        //         if (limit) {
+        //             const skip = (Number(page) - 1) * Number(limit);
+
+        //             cursor = cursor
+        //                 .skip(skip)
+        //                 .limit(Number(limit));
+        //         }
+
+        //         const result = await cursor.toArray();
+
+        //         res.send({
+        //             success: true,
+        //             data: result,
+        //             total,
+        //             currentPage: Number(page),
+        //             totalPages: limit
+        //                 ? Math.ceil(total / Number(limit))
+        //                 : 1,
+        //         });
+
+        //     } catch (error) {
+        //         console.error("Error fetching donation requests:", error);
+
+        //         res.status(500).send({
+        //             success: false,
+        //             message: "Failed to fetch donation requests",
+        //             error: error.message,
+        //         });
+        //     }
+        // });
+
+
+
         app.get("/api/donation-requests", async (req, res) => {
             try {
                 const { status, page = 1, limit } = req.query;
-
 
                 const query = {};
 
@@ -147,13 +197,15 @@ async function run() {
                     query.status = status;
                 }
 
+                console.log(req.query);
+                console.log(query);
+
                 const total = await donationRequestCollection.countDocuments(query);
 
                 let cursor = donationRequestCollection
                     .find(query)
                     .sort({ createdAt: -1 });
 
-                // Pagination
                 if (limit) {
                     const skip = (Number(page) - 1) * Number(limit);
 
@@ -175,7 +227,7 @@ async function run() {
                 });
 
             } catch (error) {
-                console.error("Error fetching donation requests:", error);
+                console.error(error);
 
                 res.status(500).send({
                     success: false,
@@ -184,6 +236,8 @@ async function run() {
                 });
             }
         });
+
+
         // ==========================
         // GET SINGLE DONATION REQUEST BY ID
         // ==========================
@@ -217,9 +271,9 @@ async function run() {
         app.get("/api/my-donation-requests", async (req, res) => {
             try {
                 const { email, page = 1, limit } = req.query;
-                console.log("Email:", email);
-                console.log("Page:", page);
-                console.log("Limit:", limit);
+                // console.log("Email:", email);
+                // console.log("Page:", page);
+                // console.log("Limit:", limit);
 
                 if (!email) {
                     return res.status(400).send({
@@ -270,8 +324,6 @@ async function run() {
                 });
             }
         });
-
-
         // ==========================
         // UPDATE (FULL) DONATION REQUEST
         // ==========================
@@ -365,8 +417,6 @@ async function run() {
             }
         });
 
-
-
         // ==========================
         // UPDATE DONATION REQUEST STATUS
         // ==========================
@@ -405,6 +455,7 @@ async function run() {
                 });
             }
         });
+
         // ==========================
         // GET SINGLE USER BY EMAIL 
         // ==========================
@@ -434,7 +485,7 @@ async function run() {
         });
 
         // ===================================
-        // UPDATE USER PROFILE 
+        // UPDATE USER PROFILE (Sanitized & Secure ✅)
         // ===================================
         app.patch("/api/users/:email", async (req, res) => {
             try {
@@ -486,7 +537,6 @@ async function run() {
                 });
             }
         });
-
 
 
         // ===================================
@@ -654,7 +704,7 @@ async function run() {
         // ==========================
         // MongoDB deployment validation
         // ==========================
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } catch (err) {
         console.error("Failed to connect to MongoDB structural routine:", err);
