@@ -366,7 +366,7 @@ async function run() {
         });
 
 
-        
+
         // ==========================
         // UPDATE DONATION REQUEST STATUS
         // ==========================
@@ -405,8 +405,89 @@ async function run() {
                 });
             }
         });
+        // ==========================
+        // GET SINGLE USER BY EMAIL 
+        // ==========================
+        app.get("/api/users/:email", async (req, res) => {
+            try {
+                const { email } = req.params;
+                const cleanEmail = email.trim().toLowerCase(); // Safe extraction
 
-        
+                const result = await usersCollection.findOne({ email: cleanEmail });
+
+                if (!result) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "User not found",
+                    });
+                }
+
+                res.send({ success: true, data: result });
+            } catch (error) {
+                console.error("Error fetching user:", error);
+                return res.status(500).send({
+                    success: false,
+                    message: "Failed to fetch user",
+                    error: error.message,
+                });
+            }
+        });
+
+        // ===================================
+        // UPDATE USER PROFILE 
+        // ===================================
+        app.patch("/api/users/:email", async (req, res) => {
+            try {
+                const { email } = req.params;
+                const cleanEmail = email.trim().toLowerCase();
+
+                const payload = req.body;
+
+
+                const allowedFields = [
+                    "name", "image", "phone", "gender", "bloodGroup",
+                    "district", "upazila", "role", "status"
+                ];
+
+                const updateDoc = {};
+
+
+                for (const field of allowedFields) {
+                    if (payload[field] !== undefined) {
+                        updateDoc[field] = payload[field];
+                    }
+                }
+
+                if (Object.keys(updateDoc).length === 0) {
+                    return res.status(400).json({ success: false, message: "No valid fields provided" });
+                }
+
+                updateDoc.updatedAt = new Date();
+
+                const result = await usersCollection.updateOne(
+                    { email: cleanEmail },
+                    { $set: updateDoc }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "User not found",
+                    });
+                }
+
+                return res.json({ success: true, message: "User updated successfully" });
+
+            } catch (error) {
+                console.error("Error updating user profile:", error);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to update profile",
+                });
+            }
+        });
+
+
         // ==========================
         // MongoDB deployment validation
         // ==========================
