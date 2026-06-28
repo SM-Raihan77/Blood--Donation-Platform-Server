@@ -133,67 +133,143 @@ async function run() {
 
 
 
-
         // ==========================
-        // CREATE DONATION REQUEST
+        // GET ALL DONATION REQUESTS
         // ==========================
-        app.post("/api/donation-requests", async (req, res) => {
+        app.get("/api/donation-requests", async (req, res) => {
             try {
-                const donationRequest = {
-                    ...req.body,
-                    status: "pending",
-                    createdAt: new Date(),
-                };
+                const { status, page = 1, limit } = req.query;
 
-                const result = await donationRequestCollection.insertOne(donationRequest);
 
-                res.status(201).send({
+                const query = {};
+
+                if (status) {
+                    query.status = status;
+                }
+
+                const total = await donationRequestCollection.countDocuments(query);
+
+                let cursor = donationRequestCollection
+                    .find(query)
+                    .sort({ createdAt: -1 });
+
+                // Pagination
+                if (limit) {
+                    const skip = (Number(page) - 1) * Number(limit);
+
+                    cursor = cursor
+                        .skip(skip)
+                        .limit(Number(limit));
+                }
+
+                const result = await cursor.toArray();
+
+                res.send({
                     success: true,
-                    message: "Donation request created successfully",
-                    insertedId: result.insertedId,
+                    data: result,
+                    total,
+                    currentPage: Number(page),
+                    totalPages: limit
+                        ? Math.ceil(total / Number(limit))
+                        : 1,
                 });
+
             } catch (error) {
-                console.error("Error creating donation request:", error);
+                console.error("Error fetching donation requests:", error);
 
                 res.status(500).send({
                     success: false,
-                    message: "Failed to create donation request",
+                    message: "Failed to fetch donation requests",
+                    error: error.message,
+                });
+            }
+        });
+        // ==========================
+        // GET SINGLE DONATION REQUEST BY ID
+        // ==========================
+        app.get("/api/donation-requests/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const query = { _id: new ObjectId(id) };
+                const result = await donationRequestCollection.findOne(query);
+
+                if (!result) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "Donation request not found",
+                    });
+                }
+
+                res.send({ success: true, data: result });
+            } catch (error) {
+                console.error("Error fetching single donation request:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to fetch donation request",
                     error: error.message,
                 });
             }
         });
 
         // ==========================
-        // CREATE DONATION REQUEST
+        // GET MY DONATION REQUESTS
         // ==========================
-        app.post("/api/donation-requests", async (req, res) => {
+        app.get("/api/my-donation-requests", async (req, res) => {
             try {
-                const donationRequest = {
-                    ...req.body,
-                    status: "pending",
-                    createdAt: new Date(),
-                };
+                const { email, page = 1, limit } = req.query;
+                console.log("Email:", email);
+                console.log("Page:", page);
+                console.log("Limit:", limit);
 
-                const result = await donationRequestCollection.insertOne(donationRequest);
+                if (!email) {
+                    return res.status(400).send({
+                        success: false,
+                        message: "Email is required",
+                    });
+                }
 
-                res.status(201).send({
+                const query = { requesterEmail: email };
+
+
+                const total = await donationRequestCollection.countDocuments(query);
+
+
+                let cursor = donationRequestCollection
+                    .find(query)
+                    .sort({ createdAt: -1 });
+
+                if (limit) {
+                    const skip = (Number(page) - 1) * Number(limit);
+
+                    cursor = cursor
+                        .skip(skip)
+                        .limit(Number(limit));
+                }
+
+                const result = await cursor.toArray();
+                console.log("Fetched Documents:", result.length);
+                console.log("Total Pages:", limit ? Math.ceil(total / Number(limit)) : 1);
+
+                res.send({
                     success: true,
-                    message: "Donation request created successfully",
-                    insertedId: result.insertedId,
+                    data: result,
+                    total,
+                    currentPage: Number(page),
+                    totalPages: limit
+                        ? Math.ceil(total / Number(limit))
+                        : 1,
                 });
+
             } catch (error) {
-                console.error("Error creating donation request:", error);
+                console.error("Error fetching my donation requests:", error);
 
                 res.status(500).send({
                     success: false,
-                    message: "Failed to create donation request",
+                    message: "Failed to fetch my donation requests",
                     error: error.message,
                 });
             }
         });
-
-
-
         // MongoDB deployment validation
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
