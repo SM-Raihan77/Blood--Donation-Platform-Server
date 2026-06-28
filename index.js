@@ -364,6 +364,49 @@ async function run() {
                 });
             }
         });
+
+
+        
+        // ==========================
+        // UPDATE DONATION REQUEST STATUS
+        // ==========================
+        app.patch("/api/donation-requests/:id/status", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { status } = req.body;
+                const allowedStatuses = ["pending", "inprogress", "done", "canceled"];
+
+                if (!allowedStatuses.includes(status)) {
+                    return res.status(400).send({
+                        success: false,
+                        message: "Invalid status value",
+                    });
+                }
+
+                const result = await donationRequestCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { status } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "Donation request not found",
+                    });
+                }
+
+                res.send({ success: true, message: `Donation request status updated to ${status}` });
+            } catch (error) {
+                console.error("Error updating donation request status:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to update donation request status",
+                    error: error.message,
+                });
+            }
+        });
+
+        
         // ==========================
         // MongoDB deployment validation
         // ==========================
