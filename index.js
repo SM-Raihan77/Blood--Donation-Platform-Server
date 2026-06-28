@@ -163,6 +163,34 @@ async function run() {
             }
         });
 
+        // ==========================
+        // CREATE DONATION REQUEST
+        // ==========================
+        app.post("/api/donation-requests", async (req, res) => {
+            try {
+                const donationRequest = {
+                    ...req.body,
+                    status: "pending",
+                    createdAt: new Date(),
+                };
+
+                const result = await donationRequestCollection.insertOne(donationRequest);
+
+                res.status(201).send({
+                    success: true,
+                    message: "Donation request created successfully",
+                    insertedId: result.insertedId,
+                });
+            } catch (error) {
+                console.error("Error creating donation request:", error);
+
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to create donation request",
+                    error: error.message,
+                });
+            }
+        });
 
 
 
