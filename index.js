@@ -270,7 +270,103 @@ async function run() {
                 });
             }
         });
+
+
+        // ==========================
+        // UPDATE (FULL) DONATION REQUEST
+        // ==========================
+        app.put("/api/donation-requests/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const updatedData = req.body;
+                const {
+                    recipientName, district, upazila, hospitalName,
+                    fullAddress, bloodGroup, donationDate, donationTime,
+                    requestMessage, status,
+                } = updatedData;
+
+                if (
+                    !recipientName || !district || !upazila || !hospitalName ||
+                    !fullAddress || !bloodGroup || !donationDate ||
+                    !donationTime || !requestMessage
+                ) {
+                    return res.status(400).send({
+                        success: false,
+                        message: "All required fields must be provided",
+                    });
+                }
+
+                const allowedStatuses = ["pending", "inprogress", "done", "canceled"];
+                if (status && !allowedStatuses.includes(status)) {
+                    return res.status(400).send({
+                        success: false,
+                        message: "Invalid status value",
+                    });
+                }
+
+                const updateDoc = {
+                    $set: {
+                        recipientName, district, upazila, hospitalName,
+                        fullAddress, bloodGroup, donationDate, donationTime,
+                        requestMessage,
+                        status: status || "pending",
+                        updatedAt: new Date(),
+                    },
+                };
+
+                const result = await donationRequestCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    updateDoc
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "Donation request not found",
+                    });
+                }
+
+                res.send({ success: true, message: "Donation request updated successfully" });
+            } catch (error) {
+                console.error("Error updating donation request:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to update donation request",
+                    error: error.message,
+                });
+            }
+        });
+
+        // ==========================
+        // DELETE DONATION REQUEST
+        // ==========================
+        app.delete("/api/donation-requests/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const result = await donationRequestCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "Donation request not found",
+                    });
+                }
+
+                res.send({ success: true, message: "Donation request deleted successfully" });
+            } catch (error) {
+                console.error("Error deleting donation request:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to delete donation request",
+                    error: error.message,
+                });
+            }
+        });
+        // ==========================
         // MongoDB deployment validation
+        // ==========================
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } catch (err) {
