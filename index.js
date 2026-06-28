@@ -488,6 +488,169 @@ async function run() {
         });
 
 
+
+        // ===================================
+        // GET DASHBOARD OVERVIEW STATISTICS
+        // ===================================
+        app.get("/api/dashboard-stats", async (req, res) => {
+            try {
+
+                const [totalUsers, totalRequests] = await Promise.all([
+                    usersCollection.countDocuments({}),
+                    donationRequestCollection.countDocuments({})
+                ]);
+
+
+                const fundingCollection = db.collection("fundings");
+                const fundingData = await fundingCollection.aggregate([
+                    { $group: { _id: null, totalAmount: { $sum: "$amount" } } }
+                ]).toArray();
+                const totalFunding = fundingData[0]?.totalAmount || 0;
+
+                res.send({
+                    success: true,
+                    data: {
+                        totalDonors: totalUsers,
+                        totalFunding: totalFunding,
+                        totalRequests: totalRequests
+                    }
+                });
+            } catch (error) {
+                console.error("Error fetching dashboard stats:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to fetch dashboard statistics",
+                    error: error.message,
+                });
+            }
+        });
+
+
+        // ===================================
+        // GET ALL USERS WITH STATUS FILTERING
+        // ===================================
+        app.get("/api/users", async (req, res) => {
+            try {
+                const { status } = req.query;
+                let query = {};
+
+
+                if (status && status !== 'all') {
+                    query.status = status;
+                }
+
+                const result = await usersCollection.find(query).toArray();
+                res.send({ success: true, data: result });
+            } catch (error) {
+                console.error("Error fetching users:", error);
+                res.status(500).send({ success: false, message: "Failed to fetch users" });
+            }
+        });
+
+        // ==========================================
+        // NEW: CONFIRM DONATION & SET IN-PROGRESS API
+        // ==========================================
+        app.patch("/api/donation-requests/:id/donate", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { donorName, donorEmail, status } = req.body;
+
+                if (!donorName || !donorEmail) {
+                    return res.status(400).send({
+                        success: false,
+                        message: "Donor name and email are required",
+                    });
+                }
+
+                const updateDoc = {
+                    $set: {
+                        donorName,
+                        donorEmail,
+                        status: status || "inprogress",
+                        updatedAt: new Date()
+                    }
+                };
+
+                const result = await donationRequestCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    updateDoc
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({
+                        success: false,
+                        message: "Donation request not found",
+                    });
+                }
+
+                res.send({
+                    success: true,
+                    message: "Donation confirmed successfully! Status updated to inprogress."
+                });
+            } catch (error) {
+                console.error("Error confirming donation:", error);
+                res.status(500).send({
+                    success: false,
+                    message: "Failed to confirm donation",
+                    error: error.message,
+                });
+            }
+        });
+
+
+        app.get("/api/donors/search", async (req, res) => {
+            console.log("Query Params:", req.query);
+            try {
+                const { bloodGroup, district, upazila } = req.query;
+
+
+                let query = { role: "donor" };
+
+                if (bloodGroup) {
+                    query.bloodGroup = bloodGroup.trim();
+                }
+
+
+                if (district || upazila) {
+                    const dStr = district ? district.trim() : "";
+                    const uStr = upazila ? upazila.trim() : "";
+
+                    query.$or = [
+
+                        {
+                            $and: [
+                                { district: { $regex: new RegExp(`^${dStr}$`, "i") } },
+                                { upazila: { $regex: new RegExp(`^${uStr}$`, "i") } }
+                            ]
+                        },
+
+                        {
+                            $and: [
+                                { address: { $regex: new RegExp(dStr, "i") } },
+                                { address: { $regex: new RegExp(uStr, "i") } }
+                            ]
+                        },
+
+                        {
+                            $and: [
+                                { location: { $regex: new RegExp(dStr, "i") } },
+                                { location: { $regex: new RegExp(uStr, "i") } }
+                            ]
+                        }
+                    ];
+                }
+                console.log("Mongo Query:", query);
+                const result = await usersCollection.find(query).toArray();
+                res.send({ success: true, data: result });
+                console.log("Found:", result);
+            } catch (error) {
+                console.error("Search Error:", error);
+                res.status(500).send({ success: false, error: error.message });
+            }
+        });
+
+
+
         // ==========================
         // MongoDB deployment validation
         // ==========================
